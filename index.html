@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>QuizForge — AI Quiz Generator</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg: #0f1117;
+  --bg2: #1a1d27;
+  --bg3: #22263a;
+  --card: #1e2235;
+  --border: #2e3350;
+  --border2: #3d4470;
+  --accent: #6c7bff;
+  --accent2: #8b96ff;
+  --accent-dim: rgba(108,123,255,0.12);
+  --text: #f0f2ff;
+  --text2: #9ba3c7;
+  --text3: #636b8f;
+  --success: #3dd68c;
+  --success-dim: rgba(61,214,140,0.12);
+  --danger: #ff6b6b;
+  --danger-dim: rgba(255,107,107,0.12);
+  --warning: #ffa94d;
+  --warning-dim: rgba(255,169,77,0.12);
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg2);
+  position: sticky; top: 0; z-index: 20;
+}
+.logo-mark {
+  width: 34px; height: 34px; background: var(--accent);
+  border-radius: 9px; display: flex; align-items: center;
+  justify-content: center; font-size: 16px;
+}
+.logo-text { font-size: 15px; font-weight: 600; }
+.logo-sub { font-size: 12px; color: var(--text2); margin-top: 1px; }
+.main { flex: 1; max-width: 780px; margin: 0 auto; padding: 2rem 1.5rem; width: 100%; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* Upload */
+.upload-hero { text-align: center; padding: 3rem 0 2rem; }
+.upload-hero h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 0.5rem; }
+.upload-hero p { color: var(--text2); }
+.drop-zone {
+  border: 2px dashed var(--border2); border-radius: 16px;
+  padding: 3rem 2rem; text-align: center; cursor: pointer;
+  transition: all 0.2s; background: var(--bg2); margin: 1.5rem 0;
+  position: relative;
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-dim); }
+.drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.drop-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+.drop-zone h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.4rem; }
+.drop-zone p { font-size: 0.875rem; color: var(--text2); }
+.file-types { display: flex; gap: 8px; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
+.file-type-badge {
+  padding: 4px 10px; border-radius: 20px;
+  background: var(--bg3); border: 1px solid var(--border);
+  font-size: 0.75rem; font-weight: 500; color: var(--text2);
+}
+.config-panel {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem;
+}
+.config-panel h3 { font-size: 0.8rem; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1.25rem; }
+.config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+@media (max-width: 540px) { .config-grid { grid-template-columns: 1fr; } }
+.config-group label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--text2); margin-bottom: 0.5rem; }
+.config-group select, .config-group input[type="number"] {
+  width: 100%; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  padding: 0.6rem 0.75rem; font-size: 0.9rem; outline: none;
+  appearance: none; cursor: pointer; transition: border-color 0.15s;
+}
+.config-group select:focus, .config-group input[type="number"]:focus { border-color: var(--accent); }
+.select-wrap { position: relative; }
+.select-wrap::after { content: '▾'; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text2); pointer-events: none; font-size: 0.8rem; }
+.file-info {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--success-dim); border: 1px solid rgba(61,214,140,0.3);
+  border-radius: var(--radius-sm); padding: 0.875rem 1rem; margin-bottom: 1.5rem;
+}
+.file-info-remove { margin-left: auto; cursor: pointer; background: none; border: none; color: var(--text2); padding: 4px; font-size: 1rem; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 0.75rem 1.5rem; border-radius: var(--radius-sm);
+  font-size: 0.95rem; font-weight: 600; cursor: pointer; border: none;
+  transition: all 0.15s; text-decoration: none; font-family: inherit;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--card); border-color: var(--border2); }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); border-color: var(--border2); }
+.btn-full { width: 100%; }
+
+/* Progress */
+.progress-bar-bg { background: var(--bg3); border-radius: 999px; height: 4px; overflow: hidden; margin: 1rem 0; }
+.progress-bar-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.4s ease; }
+
+/* Quiz */
+.quiz-header {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem;
+}
+.quiz-header h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem; }
+.quiz-meta { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.75rem; }
+.quiz-badge { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500; }
+.badge-blue { background: var(--accent-dim); color: var(--accent2); border: 1px solid rgba(108,123,255,0.3); }
+.badge-green { background: var(--success-dim); color: var(--success); border: 1px solid rgba(61,214,140,0.3); }
+.badge-orange { background: var(--warning-dim); color: var(--warning); border: 1px solid rgba(255,169,77,0.3); }
+.question-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1rem; transition: border-color 0.2s;
+}
+.question-card.answered-correct { border-color: rgba(61,214,140,0.4); }
+.question-card.answered-wrong { border-color: rgba(255,107,107,0.3); }
+.q-num { font-size: 0.75rem; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; }
+.q-text { font-size: 1rem; font-weight: 500; line-height: 1.6; margin-bottom: 1.25rem; }
+.options { display: flex; flex-direction: column; gap: 8px; }
+.option-btn {
+  width: 100%; text-align: left; padding: 0.75rem 1rem;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-size: 0.9rem; font-family: inherit; cursor: pointer;
+  transition: all 0.15s; display: flex; align-items: center; gap: 10px; line-height: 1.4;
+}
+.option-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-dim); }
+.option-btn.selected { border-color: var(--accent); background: var(--accent-dim); }
+.option-btn.correct { border-color: var(--success); background: var(--success-dim); color: var(--success); }
+.option-btn.wrong { border-color: var(--danger); background: var(--danger-dim); color: var(--danger); }
+.option-btn:disabled { cursor: default; }
+.option-letter {
+  min-width: 26px; height: 26px; border-radius: 50%;
+  background: var(--bg3); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 600; flex-shrink: 0;
+}
+.option-btn.correct .option-letter { background: var(--success); border-color: var(--success); color: #0d2e1a; }
+.option-btn.wrong .option-letter { background: var(--danger); border-color: var(--danger); color: #fff; }
+.explanation {
+  margin-top: 1rem; padding: 0.875rem 1rem;
+  background: var(--bg2); border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent); font-size: 0.875rem;
+  line-height: 1.6; color: var(--text2); display: none;
+}
+.explanation strong { color: var(--accent2); }
+.explanation.show { display: block; }
+.source-ref { font-size: 0.78rem; color: var(--text3); margin-top: 0.5rem; }
+.quiz-progress {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.5rem;
+}
+.progress-nums { font-size: 0.875rem; color: var(--text2); }
+.progress-nums span { color: var(--text); font-weight: 600; }
+.score-live { margin-left: auto; font-size: 0.875rem; }
+.score-val { font-weight: 700; color: var(--success); }
+
+/* Results */
+.result-screen { text-align: center; padding: 2rem 0; }
+.score-circle {
+  width: 130px; height: 130px; border-radius: 50%;
+  background: conic-gradient(var(--accent) 0%, var(--bg3) 0%);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1.5rem;
+}
+.score-inner {
+  width: 102px; height: 102px; border-radius: 50%;
+  background: var(--bg); display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.score-pct { font-size: 1.8rem; font-weight: 700; }
+.score-label { font-size: 0.75rem; color: var(--text2); }
+.result-screen h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+.result-screen > p { color: var(--text2); margin-bottom: 2rem; }
+.result-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; }
+.stat-val { font-size: 1.6rem; font-weight: 700; }
+.stat-label { font-size: 0.75rem; color: var(--text2); margin-top: 4px; }
+.stat-correct { color: var(--success); }
+.stat-wrong { color: var(--danger); }
+
+/* Share */
+.share-box {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.25rem; margin: 1.5rem 0; text-align: left;
+}
+.share-box h4 { font-size: 0.875rem; font-weight: 600; color: var(--text2); margin-bottom: 0.75rem; }
+.share-link-row { display: flex; gap: 8px; }
+.share-link-input {
+  flex: 1; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  padding: 0.6rem 0.875rem; font-size: 0.8rem; outline: none;
+}
+.copy-btn {
+  padding: 0.6rem 1rem; background: var(--accent); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s; white-space: nowrap; font-family: inherit;
+}
+.copy-btn:hover { background: var(--accent2); }
+.copy-btn.copied { background: var(--success); color: #0d2e1a; }
+
+/* Error / Spinner */
+.error-box {
+  background: var(--danger-dim); border: 1px solid rgba(255,107,107,0.3);
+  border-radius: var(--radius-sm); padding: 1rem; color: var(--danger);
+  font-size: 0.875rem; margin: 1rem 0;
+}
+.spinner {
+  width: 40px; height: 40px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin: 0 auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.review-toggle { font-size: 0.875rem; color: var(--accent2); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; text-decoration: underline; }
+.toast {
+  position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+  background: var(--success); color: #0d2e1a; padding: 0.75rem 1.25rem;
+  border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 600;
+  opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 100; white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+@media (max-width: 600px) {
+  .main { padding: 1.25rem 1rem; }
+  .upload-hero h1 { font-size: 1.5rem; }
+  .result-stats { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo-mark">⚡</div>
+    <div>
+      <div class="logo-text">QuizForge</div>
+      <div class="logo-sub">AI quiz generator</div>
+    </div>
+    <div style="margin-left:auto;" id="header-actions"></div>
+  </header>
+
+  <main class="main">
+
+    <!-- UPLOAD PAGE -->
+    <div id="page-upload" class="page active">
+      <div class="upload-hero">
+        <h1>Generate quizzes from any document</h1>
+        <p>Upload a file — the AI reads it and writes the quiz</p>
+      </div>
+
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="file-input" accept=".pdf,.ppt,.pptx,.xls,.xlsx" />
+        <div class="drop-icon">📄</div>
+        <h3>Drop your file here</h3>
+        <p>or click to browse</p>
+        <div class="file-types" style="margin-top:1.25rem;">
+          <span class="file-type-badge">PDF</span>
+          <span class="file-type-badge">PPT</span>
+          <span class="file-type-badge">PPTX</span>
+          <span class="file-type-badge">XLS</span>
+          <span class="file-type-badge">XLSX</span>
+        </div>
+      </div>
+
+      <div id="file-info" class="file-info" style="display:none;">
+        <span id="file-icon" style="font-size:1.4rem;">📄</span>
+        <div>
+          <div style="font-size:0.9rem;font-weight:500;" id="file-name"></div>
+          <div style="font-size:0.8rem;color:var(--text2);" id="file-size"></div>
+        </div>
+        <button class="file-info-remove" onclick="removeFile()">✕</button>
+      </div>
+
+      <div class="config-panel">
+        <h3>Quiz settings</h3>
+        <div class="config-grid">
+          <div class="config-group">
+            <label>Number of questions</label>
+            <input type="number" id="q-count" value="10" min="3" max="100" />
+          </div>
+          <div class="config-group">
+            <label>Question type</label>
+            <div class="select-wrap">
+              <select id="q-type">
+                <option value="mixed">Mixed (MCQ + True/False)</option>
+                <option value="mcq">Multiple choice only</option>
+                <option value="truefalse">True / False only</option>
+              </select>
+            </div>
+          </div>
+          <div class="config-group">
+            <label>Difficulty</label>
+            <div class="select-wrap">
+              <select id="q-diff">
+                <option value="mixed">Mixed</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+          </div>
+          <div class="config-group">
+            <label>Max questions</label>
+            <div class="select-wrap">
+              <select id="q-max">
+                <option value="unlimited" selected>As many as material supports</option>
+                <option value="requested">Exactly as requested</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="upload-error" class="error-box" style="display:none;"></div>
+      <button class="btn btn-primary btn-full" id="generate-btn" onclick="generateQuiz()" disabled>
+        ⚡ Generate quiz
+      </button>
+    </div>
+
+    <!-- GENERATING PAGE -->
+    <div id="page-generating" class="page">
+      <div style="text-align:center;padding:4rem 0;">
+        <div class="spinner"></div>
+        <div style="margin-top:2rem;">
+          <h3 id="gen-status" style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;">Reading your document…</h3>
+          <p id="gen-sub" style="font-size:0.875rem;color:var(--text2);"></p>
+        </div>
+        <div style="max-width:300px;margin:1.5rem auto 0;">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="gen-progress" style="width:5%;"></div>
+          </div>
+        </div>
+        <p style="color:var(--text3);font-size:0.8rem;margin-top:1.5rem;">This may take 20–60 seconds</p>
+      </div>
+    </div>
+
+    <!-- QUIZ PAGE -->
+    <div id="page-quiz" class="page">
+      <div id="quiz-header-section"></div>
+      <div class="quiz-progress">
+        <div class="progress-nums">Question <span id="q-answered">0</span> / <span id="q-total">0</span> answered</div>
+        <div class="score-live">Score: <span class="score-val" id="score-live">0</span></div>
+      </div>
+      <div id="questions-container"></div>
+      <div id="submit-row" style="display:none;margin-top:1.5rem;">
+        <button class="btn btn-primary btn-full" onclick="submitQuiz()">Submit quiz</button>
+        <p id="submit-note" style="font-size:0.8rem;color:var(--text3);text-align:center;margin-top:0.75rem;"></p>
+      </div>
+    </div>
+
+    <!-- RESULTS PAGE -->
+    <div id="page-results" class="page">
+      <div class="result-screen">
+        <div class="score-circle" id="score-circle">
+          <div class="score-inner">
+            <div class="score-pct" id="result-pct">--</div>
+            <div class="score-label">score</div>
+          </div>
+        </div>
+        <h2 id="result-headline">Quiz complete!</h2>
+        <p id="result-subline"></p>
+        <div class="result-stats">
+          <div class="stat-card"><div class="stat-val stat-correct" id="stat-correct">-</div><div class="stat-label">Correct</div></div>
+          <div class="stat-card"><div class="stat-val stat-wrong" id="stat-wrong">-</div><div class="stat-label">Wrong</div></div>
+          <div class="stat-card"><div class="stat-val" id="stat-total">-</div><div class="stat-label">Total</div></div>
+        </div>
+
+        <div class="share-box" id="share-box" style="display:none;">
+          <h4>Share this quiz</h4>
+          <div class="share-link-row">
+            <input type="text" class="share-link-input" id="share-link" readonly />
+            <button class="copy-btn" id="copy-btn" onclick="copyLink()">Copy link</button>
+          </div>
+          <p style="font-size:0.75rem;color:var(--text3);margin-top:0.6rem;">Anyone with this link can take the quiz — no login needed</p>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="retakeQuiz()">Take again</button>
+          <button class="btn btn-ghost" onclick="goHome()">Make another quiz</button>
+        </div>
+
+        <div style="margin-top:1.5rem;border-top:1px solid var(--border);padding-top:1.5rem;">
+          <button class="review-toggle" onclick="toggleReview()">Show answer review ▾</button>
+          <div id="review-content" style="display:none;margin-top:1rem;text-align:left;"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ── PDF.js worker ──
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── State ──
+let currentFile = null;
+let currentQuiz = null;
+let userAnswers = {};
+let quizSubmitted = false;
+let currentQuizId = null;
+
+// ── Quiz storage (localStorage for self-hosted) ──
+function saveQuiz(quiz) {
+  const id = 'quiz_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
+  try { localStorage.setItem('qf_' + id, JSON.stringify(quiz)); } catch(e) {}
+  return id;
+}
+function loadQuiz(id) {
+  try {
+    const raw = localStorage.getItem('qf_' + id);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+// ── On load: check for shared quiz in URL ──
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(location.search);
+  const quizId = params.get('quiz');
+  if (quizId) {
+    const quiz = loadQuiz(quizId);
+    if (quiz) {
+      currentQuizId = quizId;
+      currentQuiz = quiz;
+      renderQuiz(quiz);
+      showPage('page-quiz');
+    } else {
+      showError('Quiz not found. It may have been created on a different device or the link is invalid.');
+    }
+  }
+});
+
+// ── File handling ──
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['pdf','ppt','pptx','xls','xlsx'].includes(ext)) { showError('Unsupported file. Please upload PDF, PPT, PPTX, XLS, or XLSX.'); return; }
+  clearError();
+  currentFile = file;
+  const icons = {pdf:'📕',ppt:'📊',pptx:'📊',xls:'📗',xlsx:'📗'};
+  document.getElementById('file-icon').textContent = icons[ext] || '📄';
+  document.getElementById('file-name').textContent = file.name;
+  document.getElementById('file-size').textContent = formatBytes(file.size);
+  document.getElementById('file-info').style.display = 'flex';
+  document.getElementById('drop-zone').style.display = 'none';
+  document.getElementById('generate-btn').disabled = false;
+}
+function removeFile() {
+  currentFile = null;
+  document.getElementById('file-info').style.display = 'none';
+  document.getElementById('drop-zone').style.display = 'block';
+  document.getElementById('generate-btn').disabled = true;
+  fileInput.value = '';
+}
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+// ── Text extraction ──
+async function extractText(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') return extractPDF(file);
+  if (ext === 'pptx') return extractPPTX(file);
+  if (ext === 'xlsx' || ext === 'xls') return extractXLSX(file);
+  return 'File format: ' + ext + '. Content extraction attempted.';
+}
+
+async function extractPDF(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+  let text = '';
+  const max = Math.min(pdf.numPages, 80);
+  for (let i = 1; i <= max; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pt = content.items.map(it => it.str).join(' ');
+    if (pt.trim()) text += `\n[Page ${i}]\n${pt}\n`;
+  }
+  return text.trim() || 'Could not extract text (may be image-based PDF).';
+}
+
+async function extractPPTX(file) {
+  const JSZip = await loadJSZip();
+  if (!JSZip) return 'Could not parse PPTX. Try converting to PDF first.';
+  const buf = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(buf);
+  let text = '';
+  const slides = Object.keys(zip.files).filter(n => /ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a,b) => {
+    return parseInt(a.match(/\d+/)[0]) - parseInt(b.match(/\d+/)[0]);
+  });
+  for (let i = 0; i < slides.length; i++) {
+    const xml = await zip.files[slides[i]].async('string');
+    const stripped = xml.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+    if (stripped.length > 20) text += `\n[Slide ${i+1}]\n${stripped}\n`;
+  }
+  return text.trim() || 'No readable text in slides.';
+}
+
+async function extractXLSX(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, {type:'array'});
+  let text = '';
+  wb.SheetNames.forEach((name, si) => {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1, defval:''});
+    text += `\n[Sheet: ${name}]\n`;
+    rows.forEach((row, ri) => {
+      const cells = row.filter(c => c !== '' && c !== null);
+      if (cells.length) text += `Row ${ri+1}: ${cells.join(' | ')}\n`;
+    });
+  });
+  return text.trim() || 'No data found in spreadsheet.';
+}
+
+function loadJSZip() {
+  if (window.JSZip) return Promise.resolve(window.JSZip);
+  return new Promise(resolve => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.onload = () => resolve(window.JSZip);
+    s.onerror = () => resolve(null);
+    document.head.appendChild(s);
+  });
+}
+
+// ── Generate quiz ──
+async function generateQuiz() {
+  if (!currentFile) { showError('Please select a file first.'); return; }
+  clearError();
+  showPage('page-generating');
+  setStatus('Reading your document…', '', 10);
+
+  try {
+    const text = await extractText(currentFile);
+    if (!text || text.length < 50) throw new Error('Could not extract enough text from this file.');
+
+    setStatus('Analysing content…', `${text.length.toLocaleString()} characters extracted`, 30);
+
+    const qCount = parseInt(document.getElementById('q-count').value) || 10;
+    const qType = document.getElementById('q-type').value;
+    const qDiff = document.getElementById('q-diff').value;
+    const unlimited = document.getElementById('q-max').value === 'unlimited';
+
+    const typeMap = {
+      mixed: 'Mix of multiple choice (4 options A/B/C/D) and True/False. Aim for 70% MCQ, 30% True/False.',
+      mcq: 'All multiple choice with exactly 4 options (A, B, C, D).',
+      truefalse: 'All True/False only.'
+    };
+    const diffMap = {
+      mixed: 'Mix of easy, medium, and hard.',
+      easy: 'Easy — basic recall.',
+      medium: 'Medium — understanding and application.',
+      hard: 'Hard — deep comprehension and analysis.'
+    };
+
+    const prompt = `You are a quiz generator. Create a quiz STRICTLY from the content below.
+
+RULES:
+1. Only use information from the provided content. Do NOT invent anything.
+2. Every question must be directly answerable from the content.
+3. Include a source reference (page/slide/row/section) for every question.
+
+CONTENT:
+${text.substring(0, 28000)}
+
+REQUIREMENTS:
+- Questions: ${unlimited ? `Generate as many as the material supports (target: ${qCount})` : `Exactly ${qCount} questions`}
+- Type: ${typeMap[qType]}
+- Difficulty: ${diffMap[qDiff]}
+
+Respond ONLY with valid JSON, no markdown, no extra text:
+{
+  "title": "Quiz title from the content",
+  "questions": [
+    {
+      "id": 1,
+      "type": "mcq" or "truefalse",
+      "difficulty": "easy" or "medium" or "hard",
+      "text": "Question here?",
+      "options": ["A", "B", "C", "D"],
+      "correctIndex": 0,
+      "explanation": "Why this is correct, referencing the source",
+      "source": "Page 3 / Slide 2 / Row 5 / Section name"
+    }
+  ]
+}
+True/False: options must be ["True","False"]. MCQ: exactly 4 options.`;
+
+    setStatus('AI is writing your questions…', 'Usually takes 20–40 seconds', 55);
+
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `Server error (${response.status}). Check your API key in Vercel.`);
+    }
+
+    const data = await response.json();
+    const rawText = data.content?.[0]?.text || '';
+
+    setStatus('Finalising…', '', 90);
+
+    let parsed;
+    try {
+      let j = rawText.trim().replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/,'').trim();
+      const f = j.indexOf('{'), l = j.lastIndexOf('}');
+      if (f !== -1 && l !== -1) j = j.substring(f, l+1);
+      parsed = JSON.parse(j);
+    } catch(e) {
+      throw new Error('AI returned unexpected format. Please try again.');
+    }
+
+    if (!parsed.questions?.length) throw new Error('No questions generated. Try a longer document.');
+
+    currentQuiz = {
+      title: parsed.title || currentFile.name.replace(/\.[^.]+$/,''),
+      questions: parsed.questions,
+      settings: { qType, qDiff, qCount: parsed.questions.length },
+      sourceFile: currentFile.name,
+      createdAt: Date.now()
+    };
+
+    currentQuizId = saveQuiz(currentQuiz);
+    setStatus('Done!', '', 100);
+    await new Promise(r => setTimeout(r, 400));
+
+    renderQuiz(currentQuiz);
+    showPage('page-quiz');
+    renderShareInHeader(currentQuizId);
+
+  } catch(err) {
+    showPage('page-upload');
+    showError(err.message || 'Something went wrong. Please try again.');
+  }
+}
+
+function setStatus(title, sub, pct) {
+  document.getElementById('gen-status').textContent = title;
+  document.getElementById('gen-sub').textContent = sub;
+  document.getElementById('gen-progress').style.width = pct + '%';
+}
+
+// ── Render quiz ──
+function renderQuiz(quiz) {
+  userAnswers = {};
+  quizSubmitted = false;
+  const s = quiz.settings || {};
+  const diffColor = { easy:'badge-green', medium:'badge-orange', hard:'badge-blue', mixed:'badge-blue' };
+  const typeLabel = { mcq:'Multiple choice', truefalse:'True / False', mixed:'Mixed' };
+
+  document.getElementById('quiz-header-section').innerHTML = `
+    <div class="quiz-header">
+      <h2>${esc(quiz.title)}</h2>
+      <div style="font-size:0.8rem;color:var(--text3);margin-top:4px;">Source: ${esc(quiz.sourceFile || 'document')}</div>
+      <div class="quiz-meta">
+        <span class="quiz-badge badge-blue">${quiz.questions.length} questions</span>
+        <span class="quiz-badge ${diffColor[s.qDiff]||'badge-blue'}">${s.qDiff||'Mixed'} difficulty</span>
+        <span class="quiz-badge badge-green">${typeLabel[s.qType]||'Mixed'}</span>
+      </div>
+    </div>`;
+
+  document.getElementById('q-total').textContent = quiz.questions.length;
+  document.getElementById('q-answered').textContent = '0';
+  document.getElementById('score-live').textContent = '0';
+
+  const c = document.getElementById('questions-container');
+  c.innerHTML = '';
+  const letters = ['A','B','C','D'];
+
+  quiz.questions.forEach((q, qi) => {
+    const opts = q.options || ['True','False'];
+    const optHtml = opts.map((o, oi) => `
+      <button class="option-btn" onclick="selectAnswer(${qi},${oi})">
+        <span class="option-letter">${q.type==='truefalse'?(oi===0?'✓':'✗'):letters[oi]}</span>
+        <span>${esc(o)}</span>
+      </button>`).join('');
+    const dc = diffColor[q.difficulty] || 'badge-blue';
+    c.innerHTML += `
+      <div class="question-card" id="qcard-${qi}">
+        <div class="q-num">Question ${qi+1} of ${quiz.questions.length} <span class="quiz-badge ${dc}" style="font-size:0.7rem;">${q.difficulty||''}</span></div>
+        <div class="q-text">${esc(q.text)}</div>
+        <div class="options" id="opts-${qi}">${optHtml}</div>
+        <div class="explanation" id="exp-${qi}">
+          <strong>Explanation:</strong> ${esc(q.explanation||'')}
+          ${q.source?`<div class="source-ref">📍 Source: ${esc(q.source)}</div>`:''}
+        </div>
+      </div>`;
+  });
+
+  document.getElementById('submit-row').style.display = 'block';
+  updateSubmitNote();
+}
+
+function selectAnswer(qi, oi) {
+  if (quizSubmitted) return;
+  userAnswers[qi] = oi;
+  document.querySelectorAll(`#opts-${qi} .option-btn`).forEach((b,i) => b.classList.toggle('selected', i===oi));
+  const answered = Object.keys(userAnswers).length;
+  document.getElementById('q-answered').textContent = answered;
+  let correct = 0;
+  Object.entries(userAnswers).forEach(([qi,oi]) => { if (currentQuiz.questions[+qi].correctIndex===oi) correct++; });
+  document.getElementById('score-live').textContent = correct;
+  updateSubmitNote();
+}
+
+function updateSubmitNote() {
+  const total = currentQuiz?.questions.length || 0;
+  const rem = total - Object.keys(userAnswers).length;
+  const n = document.getElementById('submit-note');
+  n.textContent = rem === 0 ? 'All answered — ready to submit!' : `${rem} question${rem!==1?'s':''} unanswered`;
+  n.style.color = rem === 0 ? 'var(--success)' : 'var(--text3)';
+}
+
+function submitQuiz() {
+  if (!currentQuiz) return;
+  quizSubmitted = true;
+  document.getElementById('submit-row').style.display = 'none';
+
+  let correct = 0;
+  currentQuiz.questions.forEach((q, qi) => {
+    const ua = userAnswers[qi];
+    const ok = ua === q.correctIndex;
+    if (ok) correct++;
+    const card = document.getElementById('qcard-' + qi);
+    if (ua !== undefined) card.classList.add(ok ? 'answered-correct' : 'answered-wrong');
+    document.querySelectorAll(`#opts-${qi} .option-btn`).forEach((b,i) => {
+      b.disabled = true; b.classList.remove('selected');
+      if (i === q.correctIndex) b.classList.add('correct');
+      else if (i === ua) b.classList.add('wrong');
+    });
+    document.getElementById('exp-' + qi).classList.add('show');
+  });
+
+  const pct = Math.round(correct / currentQuiz.questions.length * 100);
+  const wrong = currentQuiz.questions.length - correct;
+  const headings = [[100,'🏆 Perfect score!'],[80,'🌟 Excellent work!'],[60,'👍 Good job!'],[40,'📚 Keep studying!'],[0,'💪 Room to improve!']];
+  const headline = headings.find(([t]) => pct >= t)[1];
+
+  document.getElementById('result-pct').textContent = pct + '%';
+  document.getElementById('result-headline').textContent = headline;
+  document.getElementById('result-subline').textContent = `You got ${correct} out of ${currentQuiz.questions.length} correct`;
+  document.getElementById('stat-correct').textContent = correct;
+  document.getElementById('stat-wrong').textContent = wrong;
+  document.getElementById('stat-total').textContent = currentQuiz.questions.length;
+
+  const deg = Math.round(pct / 100 * 360);
+  const col = pct >= 70 ? 'var(--success)' : pct >= 40 ? 'var(--warning)' : 'var(--danger)';
+  document.getElementById('score-circle').style.background = `conic-gradient(${col} ${deg}deg, var(--bg3) ${deg}deg)`;
+
+  if (currentQuizId) {
+    document.getElementById('share-link').value = location.origin + location.pathname + '?quiz=' + currentQuizId;
+    document.getElementById('share-box').style.display = 'block';
+  }
+
+  buildReview();
+  showPage('page-results');
+}
+
+function buildReview() {
+  const rev = document.getElementById('review-content');
+  const letters = ['A','B','C','D'];
+  rev.innerHTML = currentQuiz.questions.map((q,qi) => {
+    const ua = userAnswers[qi]; const ok = ua === q.correctIndex;
+    const opts = q.options || ['True','False'];
+    const icon = ua === undefined ? '⬜' : ok ? '✅' : '❌';
+    return `<div class="question-card" style="margin-bottom:1rem;">
+      <div class="q-num">${icon} Question ${qi+1}</div>
+      <div class="q-text" style="margin-bottom:0.75rem;">${esc(q.text)}</div>
+      <div style="font-size:0.85rem;color:var(--success);margin-bottom:4px;">✓ Correct: ${esc(opts[q.correctIndex])}</div>
+      ${ua!==undefined&&!ok?`<div style="font-size:0.85rem;color:var(--danger);margin-bottom:8px;">✗ Your answer: ${esc(opts[ua])}</div>`:''}
+      <div class="explanation show" style="display:block;margin-top:0.5rem;">
+        <strong>Explanation:</strong> ${esc(q.explanation||'')}
+        ${q.source?`<div class="source-ref">📍 ${esc(q.source)}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderShareInHeader(id) {
+  document.getElementById('header-actions').innerHTML = `
+    <button class="btn btn-secondary" style="font-size:0.8rem;padding:0.5rem 0.875rem;" onclick="copyToClipboard('${location.origin + location.pathname}?quiz=${id}')">
+      🔗 Copy share link
+    </button>`;
+}
+
+// ── Nav ──
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function goHome() {
+  currentFile = null; currentQuiz = null; currentQuizId = null; userAnswers = {}; quizSubmitted = false;
+  document.getElementById('header-actions').innerHTML = '';
+  document.getElementById('file-info').style.display = 'none';
+  document.getElementById('drop-zone').style.display = 'block';
+  document.getElementById('generate-btn').disabled = true;
+  fileInput.value = '';
+  const u = new URL(location.href); u.search = ''; history.replaceState({},'',' '+u.toString());
+  showPage('page-upload');
+}
+function retakeQuiz() { renderQuiz(currentQuiz); showPage('page-quiz'); }
+function toggleReview() {
+  const c = document.getElementById('review-content');
+  const vis = c.style.display !== 'none';
+  c.style.display = vis ? 'none' : 'block';
+  event.target.textContent = vis ? 'Show answer review ▾' : 'Hide answer review ▴';
+}
+
+// ── Helpers ──
+function copyLink() {
+  const v = document.getElementById('share-link').value;
+  copyToClipboard(v);
+  const btn = document.getElementById('copy-btn');
+  btn.textContent = 'Copied!'; btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = 'Copy link'; btn.classList.remove('copied'); }, 2000);
+}
+function copyToClipboard(text) {
+  try { navigator.clipboard.writeText(text); } catch(e) { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); }
+  showToast('Link copied!');
+}
+function showToast(msg) {
+  const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function showError(msg) { const e = document.getElementById('upload-error'); e.textContent = msg; e.style.display = 'block'; }
+function clearError() { document.getElementById('upload-error').style.display = 'none'; }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
